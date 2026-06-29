@@ -1,16 +1,11 @@
 langgraph
 langchain
-langchain-openai
 langchain-community
 chromadb
-tavily-python
 fastapi
-uvicorn
-streamlit
+uvicorn[standard]
 python-dotenv
 pypdf
-tiktoken
-langsmith
 langchain-chroma
 langchain-groq
 langchain-huggingface
