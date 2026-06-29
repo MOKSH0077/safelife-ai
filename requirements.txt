@@ -8,4 +8,5 @@ python-dotenv
 pypdf
 langchain-chroma
 langchain-groq
-langchain-huggingface
+langchain-huggingface
+langgraph-checkpoint-sqlite
