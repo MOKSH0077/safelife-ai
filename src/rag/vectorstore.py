@@ -16,8 +16,7 @@ if hf_token:
         huggingfacehub_api_token=hf_token
     )
 else:
-    from langchain_huggingface import HuggingFaceEmbeddings
-    embed_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    raise ValueError("HF_TOKEN or HUGGINGFACEHUB_API_TOKEN environment variable is required for serverless embeddings. Please configure it to prevent out-of-memory errors on Render.")
 
 def createvectore_store(pdf_path:str,collection_name:str):
     load_dotenv()
