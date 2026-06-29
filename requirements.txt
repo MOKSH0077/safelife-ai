@@ -1,0 +1,17 @@
+langgraph
+langchain
+langchain-openai
+langchain-community
+chromadb
+tavily-python
+fastapi
+uvicorn
+streamlit
+python-dotenv
+pypdf
+tiktoken
+langsmith
+langchain-chroma
+langchain-groq
+langchain-huggingface
+sentence-transformers

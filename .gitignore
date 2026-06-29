@@ -61,6 +61,12 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 
+# SQLite WAL mode auxiliary files
+*.db-shm
+*.db-wal
+safelife.db
+db/
+
 # Flask stuff:
 instance/
 .webassets-cache
