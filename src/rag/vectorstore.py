@@ -1,65 +1,48 @@
+"""
+vectorstore.py — BM25-based retrieval (no embedding models, no external APIs)
+
+Why BM25?
+- Chroma + local models (FastEmbed) → 300MB+ RAM → Render 512MB OOM crash
+- Chroma + HuggingFace API → DNS resolution fails on Render ([Errno -5])
+- BM25 → pure Python keyword search, zero RAM, zero external API, 100% reliable
+"""
+
 from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.retrievers import BM25Retriever
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_chroma import Chroma
-from langchain_core.embeddings import Embeddings
-from dotenv import load_dotenv
+from langchain_core.documents import Document
 import os
-import requests
-from typing import List
-
-load_dotenv()
-
-HF_TOKEN = os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACEHUB_API_TOKEN")
-
-# Use the correct HuggingFace Inference API endpoint (models, not pipeline)
-HF_API_URL = "https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2"
+import json
 
 
-class HFEmbeddings(Embeddings):
-    """Zero-RAM serverless embeddings using HuggingFace Inference API."""
-
-    def __init__(self, token: str):
-        self.headers = {"Authorization": f"Bearer {token}"}
-
-    def _embed_batch(self, texts: List[str]) -> List[List[float]]:
-        """Call HF API for a single batch of texts."""
-        payload = {
-            "inputs": texts,
-            "options": {"wait_for_model": True, "use_cache": True}
-        }
-        resp = requests.post(HF_API_URL, headers=self.headers, json=payload, timeout=60)
-        if resp.status_code != 200:
-            raise ValueError(f"HuggingFace API error {resp.status_code}: {resp.text[:300]}")
-        result = resp.json()
-        # The /models endpoint returns a list of sentence vectors directly
-        return result
-
-    def embed_documents(self, texts: List[str]) -> List[List[float]]:
-        texts = [t.replace("\n", " ").strip() for t in texts if t.strip()]
-        if not texts:
-            return []
-        # Process in small batches of 32 to avoid request size limits
-        all_embeddings: List[List[float]] = []
-        batch_size = 32
-        for i in range(0, len(texts), batch_size):
-            batch = texts[i: i + batch_size]
-            all_embeddings.extend(self._embed_batch(batch))
-        return all_embeddings
-
-    def embed_query(self, text: str) -> List[float]:
-        return self._embed_batch([text.replace("\n", " ").strip()])[0]
+# Directory to persist document chunks as JSON
+CHUNKS_DIR = "./db/chunks"
+os.makedirs(CHUNKS_DIR, exist_ok=True)
 
 
-if not HF_TOKEN:
-    raise EnvironmentError(
-        "HF_TOKEN environment variable is missing. "
-        "Set it in Render dashboard under Environment Variables."
-    )
+def _chunks_path(collection_name: str) -> str:
+    return os.path.join(CHUNKS_DIR, f"{collection_name}.json")
 
-embed_model = HFEmbeddings(token=HF_TOKEN)
+
+def _save_chunks(collection_name: str, docs: list[Document]) -> None:
+    """Persist document chunks to a JSON file."""
+    data = [{"page_content": d.page_content, "metadata": d.metadata} for d in docs]
+    with open(_chunks_path(collection_name), "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def _load_chunks(collection_name: str) -> list[Document]:
+    """Load persisted document chunks from JSON."""
+    path = _chunks_path(collection_name)
+    if not os.path.exists(path):
+        return []
+    with open(path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    return [Document(page_content=d["page_content"], metadata=d["metadata"]) for d in data]
 
 
 def createvectore_store(pdf_path: str, collection_name: str):
+    """Load a PDF, split into chunks and save for BM25 retrieval."""
     loader = PyPDFLoader(pdf_path)
     documents = loader.load()
 
@@ -71,7 +54,7 @@ def createvectore_store(pdf_path: str, collection_name: str):
     splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
     docs = splitter.split_documents(documents)
 
-    # Filter out empty/whitespace-only chunks
+    # Remove empty/whitespace-only chunks
     docs = [d for d in docs if d.page_content.strip()]
 
     if not docs:
@@ -80,19 +63,23 @@ def createvectore_store(pdf_path: str, collection_name: str):
             "If this is a scanned PDF (image only), please use an OCR tool to make it searchable first."
         )
 
-    vector_store = Chroma.from_documents(
-        documents=docs,
-        embedding=embed_model,
-        collection_name=collection_name,
-        persist_directory="./db"
-    )
-    print(f"[vectorstore] Created collection '{collection_name}' with {len(docs)} chunks.")
-    return vector_store
+    _save_chunks(collection_name, docs)
+    print(f"[vectorstore] Saved {len(docs)} chunks for collection '{collection_name}'.")
+    return docs  # Return list so main.py success check works
 
 
 def load_vectorstore(collection_name: str):
-    return Chroma(
-        collection_name=collection_name,
-        embedding_function=embed_model,
-        persist_directory="./db"
-    )
+    """Return a BM25-based retriever wrapper that matches the Chroma interface."""
+    docs = _load_chunks(collection_name)
+    if not docs:
+        # Return an empty retriever — agent will get no context but won't crash
+        docs = [Document(page_content="No document uploaded yet.", metadata={})]
+
+    retriever = BM25Retriever.from_documents(docs, k=4)
+
+    # Wrap in an object that exposes .as_retriever() to keep retriever.py unchanged
+    class _RetrieverWrapper:
+        def as_retriever(self, **kwargs):
+            return retriever
+
+    return _RetrieverWrapper()

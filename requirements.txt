@@ -1,12 +1,11 @@
 langgraph
 langchain
 langchain-community
-chromadb
 fastapi
 uvicorn[standard]
 python-dotenv
 pypdf
-langchain-chroma
 langchain-groq
 langgraph-checkpoint-sqlite
 python-multipart
+rank-bm25
