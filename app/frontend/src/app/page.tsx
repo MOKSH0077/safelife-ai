@@ -425,10 +425,26 @@ export default function Home() {
         message: t.uploadSuccess(selectedFile.name),
       });
       setSelectedFile(null);
-    } catch (error) {
+    } catch (error: any) {
+      let errorMsg = t.uploadFailure;
+      if (error && error.message) {
+        try {
+          const braceIdx = error.message.indexOf('{');
+          if (braceIdx !== -1) {
+            const parsed = JSON.parse(error.message.substring(braceIdx));
+            if (parsed && parsed.detail) {
+              errorMsg = parsed.detail;
+            }
+          } else {
+            errorMsg = error.message;
+          }
+        } catch {
+          errorMsg = error.message;
+        }
+      }
       setUploadStatus({
         success: false,
-        message: t.uploadFailure,
+        message: errorMsg,
       });
     } finally {
       setIsUploading(false);
