@@ -1,10 +1,13 @@
+import socket
+# Force python socket resolver to use IPv4 instead of IPv6 to resolve DNS issues on Render
+_original_getaddrinfo = socket.getaddrinfo
+def patched_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+    if family == socket.AF_UNSPEC or family == socket.AF_INET6:
+        family = socket.AF_INET
+    return _original_getaddrinfo(host, port, family, type, proto, flags)
+socket.getaddrinfo = patched_getaddrinfo
+
 import os
-# Force CPU thread limits to minimize memory usage on Render Free Tier
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["MKL_NUM_THREADS"] = "1"
-os.environ["OPENBLAS_NUM_THREADS"] = "1"
-os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
-os.environ["NUMEXPR_NUM_THREADS"] = "1"
 
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from pydantic import BaseModel

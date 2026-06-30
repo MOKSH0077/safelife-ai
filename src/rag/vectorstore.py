@@ -4,34 +4,17 @@ from langchain_chroma import Chroma
 from langchain_core.embeddings import Embeddings
 from dotenv import load_dotenv
 import os
-import socket
 import requests
-import urllib3
 from typing import List
 
 load_dotenv()
-
-# Disable SSL warnings for direct IP routing
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 class HuggingFaceServerlessEmbeddings(Embeddings):
     def __init__(self, model_name: str, hf_token: str):
         self.model_name = model_name
         self.hf_token = hf_token
-        
-        # Resolve huggingface.co IP (which always resolves on Render) to bypass DNS failures
-        try:
-            hf_ip = socket.gethostbyname("huggingface.co")
-            self.api_url = f"https://{hf_ip}/pipeline/feature-extraction/{self.model_name}"
-            print(f"[Embeddings] Resolved huggingface.co to {hf_ip}")
-        except Exception as e:
-            print(f"[Embeddings] DNS resolution failed, using default domain: {e}")
-            self.api_url = f"https://api-inference.huggingface.co/pipeline/feature-extraction/{self.model_name}"
-            
-        self.headers = {
-            "Authorization": f"Bearer {hf_token}",
-            "Host": "api-inference.huggingface.co"
-        }
+        self.api_url = f"https://api-inference.huggingface.co/pipeline/feature-extraction/{self.model_name}"
+        self.headers = {"Authorization": f"Bearer {hf_token}"}
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
         # Replace newlines, which can negatively affect performance
@@ -41,7 +24,6 @@ class HuggingFaceServerlessEmbeddings(Embeddings):
                 self.api_url,
                 headers=self.headers,
                 json={"inputs": texts, "options": {"wait_for_model": True}},
-                verify=False,
                 timeout=30
             )
             if response.status_code != 200:
