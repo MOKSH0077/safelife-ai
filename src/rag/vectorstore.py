@@ -9,7 +9,7 @@ load_dotenv()
 
 # Google Gemini embeddings — zero RAM, free API, 100% reliable DNS on Render
 embed_model = GoogleGenerativeAIEmbeddings(
-    model="models/text-embedding-004",
+    model="models/embedding-001",
     google_api_key=os.getenv("GOOGLE_API_KEY")
 )
 
