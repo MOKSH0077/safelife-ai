@@ -1,17 +1,7 @@
-import socket
-# Force python socket resolver to use IPv4 instead of IPv6 to resolve DNS issues on Render
-_original_getaddrinfo = socket.getaddrinfo
-def patched_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
-    if family == socket.AF_UNSPEC or family == socket.AF_INET6:
-        family = socket.AF_INET
-    return _original_getaddrinfo(host, port, family, type, proto, flags)
-socket.getaddrinfo = patched_getaddrinfo
-
-import os
-
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from pydantic import BaseModel
 import shutil
+import os
 from fastapi.middleware.cors import CORSMiddleware
 from src.agents.router import route
 from src.rag.vectorstore import createvectore_store
@@ -52,14 +42,7 @@ async def upload_file(file: UploadFile = File(...), type: str = ...):
     
     with open(save_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
-        
-    try:
-        createvectore_store(save_path, type)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to process PDF: {str(e)}")
-        
+    createvectore_store(save_path, type)
     return {"message": f"{type} PDF uploaded successfully!"}
 
 
