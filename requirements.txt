@@ -1,17 +1,25 @@
+# Core LLM & Agent Framework
 langgraph
+langgraph-checkpoint-sqlite
 langchain
-langchain-openai
 langchain-community
-chromadb
-tavily-python
-fastapi
-uvicorn
-streamlit
-python-dotenv
-pypdf
-tiktoken
-langsmith
-langchain-chroma
+
+# LLM Providers
 langchain-groq
-langchain-huggingface
-sentence-transformers
+langchain-google-genai
+
+# Vector Store
+langchain-chroma
+chromadb
+
+# PDF Processing
+pypdf
+
+# API Server
+fastapi
+uvicorn[standard]
+python-multipart
+
+# Utilities
+python-dotenv
+langsmith
