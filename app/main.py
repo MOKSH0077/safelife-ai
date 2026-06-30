@@ -1,7 +1,14 @@
+import os
+# Force CPU thread limits to minimize memory usage on Render Free Tier
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from pydantic import BaseModel
 import shutil
-import os
 from fastapi.middleware.cors import CORSMiddleware
 from src.agents.router import route
 from src.rag.vectorstore import createvectore_store
