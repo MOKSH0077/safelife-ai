@@ -8,5 +8,6 @@ python-dotenv
 pypdf
 langchain-chroma
 langchain-groq
-langchain-huggingface
 langgraph-checkpoint-sqlite
+fastembed
+python-multipart

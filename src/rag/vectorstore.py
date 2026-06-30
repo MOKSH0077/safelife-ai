@@ -6,17 +6,12 @@ import os
 
 load_dotenv()
 
-# Check for HuggingFace Token (for serverless inference on Render Free Tier)
-hf_token = os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACEHUB_API_TOKEN")
+from langchain_community.embeddings import FastEmbedEmbeddings
 
-if hf_token:
-    from langchain_huggingface import HuggingFaceEndpointEmbeddings
-    embed_model = HuggingFaceEndpointEmbeddings(
-        model="sentence-transformers/all-MiniLM-L6-v2",
-        huggingfacehub_api_token=hf_token
-    )
-else:
-    raise ValueError("HF_TOKEN or HUGGINGFACEHUB_API_TOKEN environment variable is required for serverless embeddings. Please configure it to prevent out-of-memory errors on Render.")
+embed_model = FastEmbedEmbeddings(
+    model_name="BAAI/bge-small-en-v1.5",
+    cache_dir="./fastembed_cache"
+)
 
 def createvectore_store(pdf_path:str,collection_name:str):
     load_dotenv()
