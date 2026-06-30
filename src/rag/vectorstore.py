@@ -17,9 +17,16 @@ def createvectore_store(pdf_path:str,collection_name:str):
     load_dotenv()
     loader = PyPDFLoader(pdf_path)
     documents = loader.load()
+    if not documents:
+        raise ValueError("Could not read any pages from the PDF. The file may be empty or corrupted.")
 
     text_spliter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
     docs = text_spliter.split_documents(documents)
+    
+    # Filter out empty chunks
+    docs = [d for d in docs if d.page_content.strip()]
+    if not docs:
+        raise ValueError("No readable text found in the PDF. If this is a scanned PDF (image only), please use an OCR tool to make it searchable first.")
 
     vector_store=Chroma.from_documents(documents=docs,embedding=embed_model,collection_name=collection_name,persist_directory="./db")
     print("vector store created successfully")

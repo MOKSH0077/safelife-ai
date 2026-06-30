@@ -42,7 +42,14 @@ async def upload_file(file: UploadFile = File(...), type: str = ...):
     
     with open(save_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
-    createvectore_store(save_path, type)
+        
+    try:
+        createvectore_store(save_path, type)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to process PDF: {str(e)}")
+        
     return {"message": f"{type} PDF uploaded successfully!"}
 
 
