@@ -18,7 +18,8 @@ import {
   MessageSquare,
   Trash2,
   Globe,
-  ExternalLink
+  ExternalLink,
+  XCircle
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { sendChatMessage, uploadPDF } from "@/lib/api";
@@ -155,6 +156,13 @@ export default function Home() {
   } | null>(null);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  // Auto-dismiss upload status banner after 3 seconds
+  useEffect(() => {
+    if (!uploadStatus) return;
+    const timer = setTimeout(() => setUploadStatus(null), 3000);
+    return () => clearTimeout(timer);
+  }, [uploadStatus]);
 
   const welcomeMessageText = "Namaste! Main SafeLife AI hoon. Main aapki do tareeqon se madad kar sakta hoon:\n\n1. 📂 **Medical Reports (मेडिकल रिपोर्ट)** ko simple Hindi-English mix mein samajhna.\n2. 🚨 Kisi bhi SMS, call, ya link ko **Fraud (धोखा)** check karna.\n\nAap apna sawal neeche type kar sakte hain ya upar se PDF report upload kar sakte hain!";
 
@@ -567,6 +575,42 @@ export default function Home() {
               <UploadCloud className="w-5.5 h-5.5 text-indigo-400" />
               {t.uploadPdfHeading}
             </h2>
+
+            {/* Upload Status Notification Banner */}
+            <AnimatePresence>
+              {uploadStatus && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                  transition={{ duration: 0.22, ease: "easeOut" }}
+                  className={`flex items-center justify-between gap-3 w-full rounded-xl border px-4 py-3 mb-4 ${
+                    uploadStatus.success
+                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+                      : "bg-rose-500/10 border-rose-500/30 text-rose-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                    {uploadStatus.success ? (
+                      <CheckCircle2 className="w-5 h-5 flex-shrink-0 text-emerald-400" />
+                    ) : (
+                      <AlertTriangle className="w-5 h-5 flex-shrink-0 text-rose-400" />
+                    )}
+                    <span className="text-sm font-semibold leading-snug break-words">
+                      {uploadStatus.message}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setUploadStatus(null)}
+                    className="flex-shrink-0 text-slate-500 hover:text-white transition-colors cursor-pointer"
+                    aria-label="Dismiss"
+                  >
+                    <XCircle className="w-5 h-5" />
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <form onSubmit={handleFileUpload} className="space-y-4">
               {/* Type Switcher */}
