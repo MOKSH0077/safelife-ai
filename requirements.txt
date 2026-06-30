@@ -9,5 +9,4 @@ pypdf
 langchain-chroma
 langchain-groq
 langgraph-checkpoint-sqlite
-fastembed
 python-multipart
