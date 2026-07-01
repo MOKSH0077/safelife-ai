@@ -6,7 +6,6 @@ langchain-community
 
 # LLM Providers
 langchain-groq
-langchain-google-genai
 
 # Vector Store
 langchain-chroma
