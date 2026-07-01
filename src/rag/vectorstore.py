@@ -15,18 +15,17 @@ class GeminiEmbeddings(Embeddings):
     """Calls Google Generative Language v1 API directly. Zero RAM, no library version issues."""
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
-        url = f"https://generativelanguage.googleapis.com/v1/models/text-embedding-004:embedContent?key={GOOGLE_API_KEY}"
-        embeddings = []
-        for text in texts:
-            resp = requests.post(
-                url,
-                json={"content": {"parts": [{"text": text}]}},
-                timeout=30
-            )
-            if resp.status_code != 200:
-                raise ValueError(f"Gemini API error {resp.status_code}: {resp.text}")
-            embeddings.append(resp.json()["embedding"]["values"])
-        return embeddings
+        url = f"https://generativelanguage.googleapis.com/v1/models/text-embedding-004:batchEmbedContents?key={GOOGLE_API_KEY}"
+        payload = {
+            "requests": [
+                {"model": "models/text-embedding-004", "content": {"parts": [{"text": t}]}}
+                for t in texts
+            ]
+        }
+        resp = requests.post(url, json=payload, timeout=60)
+        if resp.status_code != 200:
+            raise ValueError(f"Gemini API error {resp.status_code}: {resp.text}")
+        return [e["values"] for e in resp.json()["embeddings"]]
 
     def embed_query(self, text: str) -> List[float]:
         url = f"https://generativelanguage.googleapis.com/v1/models/text-embedding-004:embedContent?key={GOOGLE_API_KEY}"
