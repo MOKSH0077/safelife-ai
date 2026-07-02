@@ -452,10 +452,10 @@ export default function Home() {
               errorMsg = parsed.detail;
             }
           } else {
-            errorMsg = error.message;
+            errorMsg = errObj.message;
           }
         } catch {
-          errorMsg = error.message;
+          errorMsg = errObj.message;
         }
       }
       setUploadStatus({
