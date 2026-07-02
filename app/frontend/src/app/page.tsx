@@ -127,6 +127,9 @@ interface ChatSession {
   uploadedFiles: UploadedFile[];
 }
 
+const generateSessionId = () => "thread_" + Math.random().toString(36).substring(2, 11);
+const getTimestampId = (prefix: string) => `${prefix}_${Date.now()}`;
+
 export default function Home() {
   const { isSignedIn } = useAuth();
   const { openSignIn } = useClerk();
@@ -135,12 +138,59 @@ export default function Home() {
   const [fontSize, setFontSize] = useState<"lg" | "xl">("lg");
 
   // Language Switch State
-  const [language, setLanguage] = useState<"en" | "hi">("hi");
+  const [language, setLanguage] = useState<"en" | "hi">(() => {
+    if (typeof window !== "undefined") {
+      const savedLang = localStorage.getItem("safelife_lang_v1");
+      if (savedLang === "en" || savedLang === "hi") {
+        return savedLang as "en" | "hi";
+      }
+    }
+    return "hi";
+  });
   const t = translations[language];
   
   // Chat History / Session States
-  const [sessions, setSessions] = useState<ChatSession[]>([]);
-  const [activeSessionId, setActiveSessionId] = useState<string>("");
+  const [sessions, setSessions] = useState<ChatSession[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("safelife_chats_v1");
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved) as ChatSession[];
+          if (parsed.length > 0) return parsed;
+        } catch (e) {
+          console.error("Error parsing saved sessions", e);
+        }
+      }
+    }
+    // Default first session if none exists
+    const initialSessionId = "thread_default";
+    return [{
+      id: initialSessionId,
+      title: "New Chat (नया चैट)",
+      messages: [
+        {
+          id: "welcome",
+          sender: "ai",
+          text: "Namaste! Main SafeLife AI hoon. Main aapki do tareeqon se madad kar sakta hoon:\n\n1. 📂 **Medical Reports (मेडिकल रिपोर्ट)** ko simple Hindi-English mix mein samajhna.\n2. 🚨 Kisi bhi SMS, call, ya link ko **Fraud (धोखा)** check karna.\n\nAap apna sawal neeche type kar sakte hain ya upar se PDF report upload kar sakte hain!",
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        }
+      ],
+      uploadedFiles: []
+    }];
+  });
+
+  const [activeSessionId, setActiveSessionId] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("safelife_chats_v1");
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved) as ChatSession[];
+          if (parsed.length > 0) return parsed[0].id;
+        } catch {}
+      }
+    }
+    return "thread_default";
+  });
   
   // Chat Input State
   const [inputValue, setInputValue] = useState("");
@@ -165,48 +215,6 @@ export default function Home() {
   }, [uploadStatus]);
 
   const welcomeMessageText = "Namaste! Main SafeLife AI hoon. Main aapki do tareeqon se madad kar sakta hoon:\n\n1. 📂 **Medical Reports (मेडिकल रिपोर्ट)** ko simple Hindi-English mix mein samajhna.\n2. 🚨 Kisi bhi SMS, call, ya link ko **Fraud (धोखा)** check karna.\n\nAap apna sawal neeche type kar sakte hain ya upar se PDF report upload kar sakte hain!";
-
-  // 1. Initial Load: Retrieve sessions and language from localStorage
-  useEffect(() => {
-    const savedLang = localStorage.getItem("safelife_lang_v1");
-    if (savedLang === "en" || savedLang === "hi") {
-      setLanguage(savedLang as "en" | "hi");
-    }
-
-    const saved = localStorage.getItem("safelife_chats_v1");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved) as ChatSession[];
-        if (parsed.length > 0) {
-          setSessions(parsed);
-          setActiveSessionId(parsed[0].id);
-          return;
-        }
-      } catch (e) {
-        console.error("Error parsing saved sessions", e);
-      }
-    }
-
-    // Default first session if none exists
-    const initialSessionId = "thread_" + Math.random().toString(36).substring(2, 11);
-    const defaultSession: ChatSession = {
-      id: initialSessionId,
-      title: "New Chat (नया चैट)",
-      messages: [
-        {
-          id: "welcome",
-          sender: "ai",
-          text: welcomeMessageText,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        }
-      ],
-      uploadedFiles: []
-    };
-    
-    setSessions([defaultSession]);
-    setActiveSessionId(initialSessionId);
-    localStorage.setItem("safelife_chats_v1", JSON.stringify([defaultSession]));
-  }, []);
 
   // Save language to localStorage whenever it changes
   useEffect(() => {
@@ -275,14 +283,13 @@ export default function Home() {
     const filtered = sessions.filter(s => s.id !== sessionId);
     
     if (filtered.length === 0) {
-      // If all deleted, generate a fresh one
-      const newSessionId = "thread_" + Math.random().toString(36).substring(2, 11);
+      const newSessionId = generateSessionId();
       const defaultSession: ChatSession = {
         id: newSessionId,
         title: "New Chat (नया चैट)",
         messages: [
           {
-            id: "welcome_" + Date.now(),
+            id: getTimestampId("welcome"),
             sender: "ai",
             text: welcomeMessageText,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -365,7 +372,7 @@ export default function Home() {
 
     try {
       // Call backend
-      const response = await sendChatMessage(userMessageText, activeSessionId);
+      const response = await sendChatMessage(userMessageText, activeSessionId, activeSession.uploadedFiles);
       
       const aiMsg: Message = {
         id: "msg_" + Date.now() + "_ai",
@@ -433,13 +440,14 @@ export default function Home() {
         message: t.uploadSuccess(selectedFile.name),
       });
       setSelectedFile(null);
-    } catch (error: any) {
+    } catch (error) {
       let errorMsg = t.uploadFailure;
-      if (error && error.message) {
+      const errObj = error as { message?: string };
+      if (errObj && errObj.message) {
         try {
-          const braceIdx = error.message.indexOf('{');
+          const braceIdx = errObj.message.indexOf('{');
           if (braceIdx !== -1) {
-            const parsed = JSON.parse(error.message.substring(braceIdx));
+            const parsed = JSON.parse(errObj.message.substring(braceIdx));
             if (parsed && parsed.detail) {
               errorMsg = parsed.detail;
             }

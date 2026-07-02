@@ -9,18 +9,32 @@ export interface UploadResponse {
   message: string;
 }
 
+export interface UploadedFile {
+  name: string;
+  type: "medical" | "fraud";
+}
+
 /**
  * Sends a chat question to the SafeLife AI backend.
  * @param question - The message string from the user.
  * @param threadId - Unique session ID for persistent memory.
+ * @param uploadedFiles - Active uploaded files in the current chat session.
  */
-export async function sendChatMessage(question: string, threadId: string): Promise<ChatResponse> {
+export async function sendChatMessage(
+  question: string, 
+  threadId: string, 
+  uploadedFiles?: UploadedFile[]
+): Promise<ChatResponse> {
   const response = await fetch(`${API_BASE_URL}/chat`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ question, thread_id: threadId }),
+    body: JSON.stringify({ 
+      question, 
+      thread_id: threadId,
+      uploaded_files: uploadedFiles
+    }),
   });
 
   if (!response.ok) {

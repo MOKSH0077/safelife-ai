@@ -1,6 +1,7 @@
 from langgraph.graph import StateGraph, END,START
 from typing import TypedDict,List,Annotated
-from src.rag.retriever import get_retriever
+# Hinglish Comment: retriever.py se get_all_chunks bhi import kiya taaki user ki report ka poora text direct fetch kiya ja sake.
+from src.rag.retriever import get_retriever, get_all_chunks
 from src.prompts.prompts import FRAUD_PROMPT
 from langchain_groq import ChatGroq
 from dotenv import load_dotenv
@@ -18,13 +19,28 @@ llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.7)
 class FraudState(TypedDict):
     messages:Annotated[List[BaseMessage],operator.add]
     context:List[str]
-    question:str 
+    question:str
+    # Hinglish Comment: uploaded_files state mein add kiya taaki frontend se aayi files ki list retriever node tak pahunch sake.
+    uploaded_files:list
+
+# Hinglish Comment: Agar user "explain/summarize" jaise words bolega, toh direct full document chunks load honge.
+EXPLAIN_WORDS = ["explain","summarize","batao","samjhao","kya hai","what is","translate","read"]
 
 def retriver_node(state:FraudState):
     question=state['question']
-    retriver=get_retriever('fraud')
-    chunks=retriver.invoke(question)
-    context = [chunk.page_content for chunk in chunks]
+    uploaded_files=state.get('uploaded_files') or []
+    # Hinglish Comment: Sirf fraud type ki uploaded files ko filter kiya.
+    fraud_files=[f for f in uploaded_files if f.get('type')=='fraud']
+
+    # Hinglish Comment: Agar user query "explain this document" jaisi generic hai, toh blind semantic search bypass karke 
+    # seedhe get_all_chunks se poori file page order mein load karenge taaki LLM use explain kar sake. 
+    # Lekin agar query specific hai (e.g. "kya yeh message scam hai"), toh normal vector search (retriever.invoke) chalega.
+    if fraud_files and any(w in question.lower() for w in EXPLAIN_WORDS):
+        context = get_all_chunks('fraud', fraud_files[0]['name'], 'data/fraud_docs')
+    else:
+        retriver=get_retriever('fraud')
+        chunks=retriver.invoke(question)
+        context = [chunk.page_content for chunk in chunks]
     return {"context":context}
 
 def generate_node(state:FraudState):

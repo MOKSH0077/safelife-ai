@@ -18,6 +18,7 @@ app.add_middleware(
 class ChatRequest(BaseModel):
     question: str
     thread_id: str
+    uploaded_files: list = None
 
 class ChatResponse(BaseModel):
     response: str
@@ -25,7 +26,7 @@ class ChatResponse(BaseModel):
 
 @app.post('/chat',response_model=ChatResponse)
 def chat(request:ChatRequest):
-    result=route(question=request.question,thread=request.thread_id)
+    result=route(question=request.question,thread=request.thread_id,uploaded_files=request.uploaded_files)
     answer = result["result"]["messages"][-1].content
     category = result["category"]
     
