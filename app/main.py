@@ -4,7 +4,7 @@ import shutil
 import os
 from fastapi.middleware.cors import CORSMiddleware
 from src.agents.router import route
-from src.rag.vectorstore import createvectore_store
+from src.rag.vectorstore import createvectore_store, delete_file_from_vectorstore
 
 app=FastAPI()
 app.add_middleware(
@@ -46,6 +46,34 @@ async def upload_file(file: UploadFile = File(...), type: str = ...):
     createvectore_store(save_path, type)
     return {"message": f"{type} PDF uploaded successfully!"}
 
+class DeleteRequest(BaseModel):
+    filename: str
+    type: str
+
+@app.post('/delete-file')
+def delete_file(request: DeleteRequest):
+    if request.type == "medical":
+        folder = "data/medical_pdfs"
+    else:
+        folder = "data/fraud_docs"
+    
+    file_path = f"{folder}/{request.filename}"
+    
+    # 1. Delete chunks from Chroma Vectorstore
+    try:
+        delete_file_from_vectorstore(request.filename, request.type)
+    except Exception as e:
+        print(f"Error deleting from vectorstore: {e}")
+        
+    # 2. Delete physical PDF file from disk
+    if os.path.exists(file_path):
+        try:
+            os.remove(file_path)
+            print(f"Deleted physical file: {file_path}")
+        except Exception as e:
+            print(f"Error deleting physical file: {e}")
+            
+    return {"message": f"{request.filename} deleted successfully!"}
 
 @app.get("/health")
 def health():

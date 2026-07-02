@@ -19,10 +19,11 @@ import {
   Trash2,
   Globe,
   ExternalLink,
-  XCircle
+  XCircle,
+  X
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { sendChatMessage, uploadPDF } from "@/lib/api";
+import { sendChatMessage, uploadPDF, deleteUploadedFile } from "@/lib/api";
 import { SignInButton, SignUpButton, Show, UserButton, useAuth, useClerk } from '@clerk/nextjs';
 
 const translations = {
@@ -304,6 +305,26 @@ export default function Home() {
       if (activeSessionId === sessionId) {
         setActiveSessionId(filtered[0].id);
       }
+    }
+  };
+
+  // Delete an Uploaded File
+  const handleDeleteFile = async (filename: string, type: "medical" | "fraud") => {
+    if (!activeSessionId || !activeSession) return;
+    try {
+      await deleteUploadedFile(filename, type);
+
+      const updatedUploadedFiles = activeSession.uploadedFiles.filter(f => f.name !== filename);
+      const updatedSession: ChatSession = {
+        ...activeSession,
+        uploadedFiles: updatedUploadedFiles,
+      };
+
+      const updatedSessions = sessions.map(s => s.id === activeSessionId ? updatedSession : s);
+      saveSessionsToDisk(updatedSessions);
+    } catch (error) {
+      console.error("Error deleting file:", error);
+      alert("Failed to delete file from backend/Chroma.");
     }
   };
 
@@ -785,12 +806,23 @@ export default function Home() {
                     <span className="flex items-center gap-1.5 flex-wrap">
                       {t.uploadedPrefix}
                       {activeSession.uploadedFiles.map((f, i) => (
-                        <span key={i} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold uppercase ${
+                        <span key={i} className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-bold uppercase ${
                           f.type === "medical" 
                             ? "bg-teal-500/20 text-teal-300 border border-teal-500/20" 
                             : "bg-rose-500/20 text-rose-300 border border-rose-500/20"
                         }`}>
                           {f.type === "medical" ? t.medical : t.fraud}: {f.name}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteFile(f.name, f.type);
+                            }}
+                            className="ml-1 text-slate-400 hover:text-white hover:bg-white/10 p-0.5 rounded-full cursor-pointer transition-colors"
+                            title="Delete file"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
                         </span>
                       ))}
                     </span>

@@ -66,3 +66,23 @@ export async function uploadPDF(file: File, type: "medical" | "fraud"): Promise<
 
   return response.json();
 }
+
+/**
+ * Deletes a medical or fraud document from the SafeLife AI backend and Chroma DB.
+ * @param filename - The name of the file to delete.
+ * @param type - The document category ('medical' or 'fraud').
+ */
+export async function deleteUploadedFile(filename: string, type: "medical" | "fraud"): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/delete-file`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ filename, type }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Failed to delete file: ${response.statusText}. ${errText}`);
+  }
+}
